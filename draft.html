@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>羽毛球业余选人系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #eef4f8, #e3edf3, #f7f9fb);
+    min-height: 100vh; color: #2d3748; padding: 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { text-align: center; margin-bottom: 8px; letter-spacing: 2px; color: #1a365d; }
+  .subtitle { text-align: center; color: #718096; margin-bottom: 20px; font-size: 14px; }
+  .card {
+    background: #ffffff; border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(45, 55, 72, 0.06);
+  }
+  .card h2 { font-size: 17px; margin-bottom: 14px; border-left: 4px solid #319795; padding-left: 10px; color: #2c7a7b; }
+  input, select, button {
+    font-family: inherit; font-size: 14px; border-radius: 6px;
+    border: 1px solid #cbd5e0; padding: 8px 12px;
+    background: #ffffff; color: #2d3748; outline: none;
+  }
+  input:focus, select:focus { border-color: #319795; box-shadow: 0 0 0 3px rgba(49, 151, 149, 0.15); }
+  button { cursor: pointer; transition: all .15s; background: #e6fffa; border: 1px solid #b2f5ea; color: #285e61; }
+  button:hover { background: #c6f6e5; }
+  button:disabled { background: #e2e8f0; color: #a0aec0; cursor: not-allowed; border-color: #e2e8f0; }
+  button.primary { background: #ed8936; border-color: #ed8936; color: #fff; }
+  button.primary:hover { background: #dd6b20; }
+  button.danger { background: #fff5f5; border-color: #feb2b2; color: #c53030; }
+  button.danger:hover { background: #fed7d7; }
+  button.small { padding: 4px 10px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #edf2f7; font-size: 14px; }
+  th { color: #319795; font-weight: 600; background: #f7fafc; }
+  .row-actions { text-align: right; white-space: nowrap; }
+  .hint { color: #a0aec0; font-size: 12px; margin-top: 8px; }
+
+  /* 等级徽章 */
+  .lvl {
+    display: inline-block; min-width: 44px; text-align: center;
+    padding: 2px 8px; border-radius: 10px; font-size: 13px; font-weight: bold; color: #fff;
+  }
+  .lvl-1 { background: #48bb78; } .lvl-2 { background: #68d391; color:#276749; }
+  .lvl-3 { background: #f6e05e; color: #975a16; } .lvl-4 { background: #ed8936; }
+  .lvl-5 { background: #fc8181; }
+  .lvl-cap { background: #9f7aea; }
+
+  /* 阶段控制 */
+  .hidden { display: none !important; }
+
+  /* 选人阶段布局 */
+  .draft-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+  @media (max-width: 900px) { .draft-layout { grid-template-columns: 1fr; } }
+  .turn-banner {
+    background: linear-gradient(90deg, #ed8936, #f6ad55);
+    color: #fff;
+    padding: 14px 20px; border-radius: 10px; font-size: 18px; font-weight: bold;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+    box-shadow: 0 4px 12px rgba(237, 137, 54, 0.25);
+  }
+  .turn-banner .round { font-size: 14px; opacity: .95; }
+  .player-pool { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .player-chip {
+    background: #f7fafc; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; gap: 8px; font-size: 14px;
+  }
+  .player-chip:hover { border-color: #ed8936; background: #fffaf0; transform: translateY(-2px); box-shadow: 0 3px 8px rgba(237, 137, 54, 0.15); }
+  .player-chip.selected { opacity: .35; pointer-events: none; text-decoration: line-through; background: #edf2f7; }
+  .team-box { background: #ffffff; border-radius: 10px; padding: 14px; margin-bottom: 14px; border-left: 4px solid #319795; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+  .team-box.active-team { border-left-color: #ed8936; background: #fffaf0; box-shadow: 0 0 0 2px rgba(237, 137, 54, 0.25); }
+  .team-box.full { border-left-color: #48bb78; }
+  .team-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .team-name { font-weight: bold; font-size: 16px; color: #1a365d; }
+  .team-total { font-size: 13px; color: #718096; }
+  .team-members { display: flex; flex-wrap: wrap; gap: 6px; }
+  .member {
+    background: #edf2f7; border-radius: 6px; padding: 4px 10px; font-size: 13px; color: #2d3748;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .member.captain { background: #e9d8fd; font-weight: bold; color: #553c9a; }
+  .member .undo-btn { color: #dd6b20; cursor: pointer; font-size: 12px; }
+  .member .undo-btn:hover { color: #c05621; }
+  .btn-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .log { font-size: 13px; color: #4a5568; max-height: 160px; overflow-y: auto; margin-top: 10px; }
+  .log div { padding: 3px 0; border-bottom: 1px dashed #e2e8f0; }
+  .final-btn { text-align: center; margin-top: 10px; }
+  .success-msg { color: #38a169; text-align: center; font-size: 16px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏸 羽毛球业余选人系统</h1>
+  <div class="subtitle">中羽等级 0.5 ~ 4.5 ｜ 每队 5 人（含队长）｜ 每轮后总等级最低队先选</div>
+
+  <!-- ============ 设置阶段 ============ -->
+  <div id="setupPhase">
+    <div class="card">
+      <h2>第一步：队伍与队长</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+        <label>队伍数量：
+          <select id="teamCount" onchange="renderCaptainRows()">
+            <option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>
+            <option value="5">5</option><option value="6">6</option>
+          </select>
+        </label>
+        <span class="hint">共需 <span id="totalSlots"></span> 人（队长 + 队员）</span>
+      </div>
+      <table id="captainTable">
+        <thead><tr><th>#</th><th>队长姓名</th><th>队长等级</th><th>队伍名称（可选）</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>第二步：已定级待选选手</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <input id="pName" placeholder="选手姓名" style="width:120px">
+        <select id="pLevel"></select>
+        <button class="primary" onclick="addPlayer()">+ 添加选手</button>
+        <button onclick="fillDemo()">示例数据</button>
+        <button class="danger" onclick="clearPlayers()">清空</button>
+        <span class="hint">当前 <span id="poolCount">0</span> 人</span>
+      </div>
+      <table id="playerTable">
+        <thead><tr><th>#</th><th>姓名</th><th>等级</th><th style="text-align:right">操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="hint">建议待选人数 = 队数 × 4（每队还需选 4 人），当前差额：<span id="diffCount">-</span></div>
+    </div>
+
+    <div class="card" style="text-align:center;">
+      <button class="primary" style="font-size:17px;padding:12px 40px;" onclick="startDraft()">开始选人（随机抽签首轮顺序）→</button>
+    </div>
+  </div>
+
+  <!-- ============ 选人阶段 ============ -->
+  <div id="draftPhase" class="hidden">
+    <div class="draft-layout">
+      <div>
+        <div class="turn-banner" id="turnBanner"></div>
+        <div class="card" style="margin-top:16px;">
+          <h2>待选选手池（点击选入当前队伍）</h2>
+          <div class="player-pool" id="playerPool"></div>
+          <div class="hint">当前为第 <span id="roundNow">-</span> / <span id="roundTotal">-</span> 轮 ｜ 剩余 <span id="roundLeft">-</span> 轮 ｜ 本轮顺序：<span id="orderNow">-</span></div>
+        </div>
+      </div>
+      <div>
+        <div id="teamList"></div>
+        <div class="card">
+          <h2>操作</h2>
+          <div class="btn-bar">
+            <button onclick="undoPick()">↩ 撤销上一步</button>
+            <button class="danger" onclick="resetAll()">重置全部</button>
+          </div>
+          <div class="log" id="logBox"></div>
+        </div>
+      </div>
+    </div>
+    <div id="finishArea" class="hidden card final-btn">
+      <div class="success-msg">✅ 选人完成！各队阵容如下：</div>
+      <div id="finalTeams" style="text-align:left;margin-top:10px;"></div>
+      <div class="btn-bar" style="justify-content:center;margin-top:16px;">
+        <button class="primary" onclick="exportResult()">📋 复制结果</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ 数据 ============ */
+const LEVELS = [];
+for (let v = 0.5; v <= 4.51; v += 0.5) LEVELS.push(Math.round(v * 10) / 10);
+const TEAM_SIZE = 5; // 含队长
+let players = [];   // {id, name, level, teamId: null}
+let teams = [];     // {id, name, captain:{name,level}, members:[playerId], total}
+let pickHistory = []; // 每步记录 {playerId, teamId}
+let currentTeamIdx = 0;   // 当前应选队伍在 roundOrder 中的索引
+let roundOrder = [];      // 本轮选人顺序（teamId 数组）
+let initialOrder = [];    // 首轮抽签顺序备份（供撤销重放）
+let roundNo = 1;
+let draftDone = false;
+
+/* ============ 工具 ============ */
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function lvlClass(l) { return 'lvl-' + Math.min(5, Math.ceil(l)); }
+function log(msg) {
+  const d = document.createElement('div');
+  d.textContent = `${new Date().toLocaleTimeString('zh-CN',{hour12:false})} ${msg}`;
+  $('logBox').prepend(d);
+}
+
+/* ============ 设置阶段 ============ */
+(function initLevelSelect() {
+  $('pLevel').innerHTML = LEVELS.map(l =>
+    `<option value="${l}">${l.toFixed(1)}</option>`).join('');
+  $('pLevel').value = '2.5';
+})();
+
+function renderCaptainRows() {
+  const n = +$('teamCount').value;
+  const tb = $('captainTable').querySelector('tbody');
+  tb.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    tb.innerHTML += `<tr>
+      <td>${i + 1}</td>
+      <td><input data-ci="${i}" class="cap-name" placeholder="队长${i + 1}" style="width:100%"></td>
+      <td><select data-ci="${i}" class="cap-level">${LEVELS.map(l =>
+        `<option value="${l}" ${l === 3 ? 'selected' : ''}>${l.toFixed(1)}</option>`).join('')}</select></td>
+      <td><input data-ci="${i}" class="cap-team" placeholder="第${i + 1}队（默认）" style="width:100%"></td>
+    </tr>`;
+  }
+  $('totalSlots').textContent = n * TEAM_SIZE;
+  updateCounts();
+}
+
+function addPlayer() {
+  const name = $('pName').value.trim();
+  if (!name) { alert('请输入选手姓名'); return; }
+  players.push({ id: players.length, name, level: +$('pLevel').value, teamId: null });
+  $('pName').value = ''; $('pName').focus();
+  renderPlayerTable();
+}
+
+function fillDemo() {
+  const demo = [
+    ['张伟', 3], ['王芳', 2.5], ['李强', 3.5], ['刘洋', 2], ['陈静', 2.5],
+    ['杨帆', 3], ['赵磊', 1.5], ['黄敏', 2], ['周杰', 4], ['吴婷', 1],
+    ['徐鹏', 2.5], ['孙丽', 3], ['马超', 1.5], ['朱琳', 2], ['胡军', 3.5],
+    ['郭燕', 2.5], ['林峰', 4.5], ['何雪', 1], ['高远', 3], ['罗丹', 2]
+  ];
+  demo.forEach(([n, l]) => players.push({ id: players.length, name: n, level: l, teamId: null }));
+  renderPlayerTable();
+}
+
+function clearPlayers() {
+  if (!confirm('确定清空所有待选选手？')) return;
+  players = []; renderPlayerTable();
+}
+
+function delPlayer(id) {
+  players = players.filter(p => p.id !== id);
+  renderPlayerTable();
+}
+
+function renderPlayerTable() {
+  const tb = $('playerTable').querySelector('tbody');
+  tb.innerHTML = players.map((p, i) => `<tr>
+    <td>${i + 1}</td><td>${esc(p.name)}</td>
+    <td><span class="lvl ${lvlClass(p.level)}">${p.level.toFixed(1)}</span></td>
+    <td class="row-actions"><button class="small danger" onclick="delPlayer(${p.id})">删除</button></td>
+  </tr>`).join('');
+  updateCounts();
+}
+
+function updateCounts() {
+  $('poolCount').textContent = players.length;
+  const need = +$('teamCount').value * (TEAM_SIZE - 1);
+  $('diffCount').textContent = players.length - need;
+}
+
+/* ============ 开始选人 ============ */
+function startDraft() {
+  const n = +$('teamCount').value;
+  const capNames = [...document.querySelectorAll('.cap-name')];
+  const capLevels = [...document.querySelectorAll('.cap-level')];
+  const capTeams = [...document.querySelectorAll('.cap-team')];
+  for (let i = 0; i < n; i++) {
+    if (!capNames[i].value.trim()) { alert(`请填写第 ${i + 1} 队的队长姓名`); return; }
+  }
+  if (players.length < n * (TEAM_SIZE - 1)) {
+    alert(`待选选手不足：需要 ${n * (TEAM_SIZE - 1)} 人，当前 ${players.length} 人`);
+    return;
+  }
+  if (players.length > n * (TEAM_SIZE - 1)) {
+    if (!confirm(`待选选手比需求多 ${players.length - n * (TEAM_SIZE - 1)} 人，多出的选手将不会被选中。继续吗？`)) return;
+  }
+
+  teams = [];
+  for (let i = 0; i < n; i++) {
+    teams.push({
+      id: i,
+      name: capTeams[i].value.trim() || `第${i + 1}队`,
+      captain: { name: capNames[i].value.trim(), level: +capLevels[i].value },
+      members: [], total: +capLevels[i].value
+    });
+  }
+  players.forEach(p => p.teamId = null);
+  pickHistory = []; draftDone = false;
+
+  // 首轮顺序：随机抽签
+  roundOrder = teams.map(t => t.id);
+  for (let i = roundOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [roundOrder[i], roundOrder[j]] = [roundOrder[j], roundOrder[i]];
+  }
+  currentTeamIdx = 0; roundNo = 1;
+  initialOrder = roundOrder.slice(); // 备份首轮抽签顺序，供撤销时重放
+
+  $('setupPhase').classList.add('hidden');
+  $('draftPhase').classList.remove('hidden');
+  $('finishArea').classList.add('hidden');
+  log(`首轮抽签顺序：${roundOrder.map(id => teams[id].name).join(' → ')}`);
+  renderDraft();
+}
+
+/* ============ 选人渲染 ============ */
+function curTeamId() { return roundOrder[currentTeamIdx]; }
+
+function renderDraft() {
+  if (draftDone) { renderFinal(); return; }
+  const t = teams[curTeamId()];
+  const totalRounds = TEAM_SIZE - 1;                 // 总轮次 = 每队队员名额数
+  const roundsLeft = Math.max(0, totalRounds - roundNo); // 剩余轮次（不含当前轮）
+  $('turnBanner').innerHTML =
+    `<span>🎯 轮到：【${esc(t.name)}】选人</span>
+     <span class="round">第 ${roundNo}/${totalRounds} 轮（剩 ${roundsLeft} 轮）｜ 队长：${esc(t.captain.name)} ｜ 已 ${t.members.length + 1}/${TEAM_SIZE} 人</span>`;
+  $('roundNow').textContent = roundNo;
+  $('roundTotal').textContent = totalRounds;
+  $('roundLeft').textContent = roundsLeft;
+  $('orderNow').textContent = roundOrder.map(id => teams[id].name).join(' → ');
+
+  // 选手池
+  $('playerPool').innerHTML = players.map(p => {
+    const sel = p.teamId !== null ? ' selected' : '';
+    return `<div class="player-chip${sel}" onclick="pickPlayer(${p.id})">
+      <span>${esc(p.name)}</span><span class="lvl ${lvlClass(p.level)}">${p.level.toFixed(1)}</span>
+    </div>`;
+  }).join('');
+
+  // 队伍列表
+  const activeId = curTeamId();
+  $('teamList').innerHTML = teams.map(t => {
+    const active = t.id === activeId && !draftDone;
+    const full = t.members.length >= TEAM_SIZE - 1;
+    return `<div class="team-box${active ? ' active-team' : ''}${full ? ' full' : ''}">
+      <div class="team-head">
+        <span class="team-name">${esc(t.name)}</span>
+        <span class="team-total">总等级 <b>${t.total.toFixed(1)}</b>（${t.members.length + 1}/${TEAM_SIZE}人）</span>
+      </div>
+      <div class="team-members">
+        <span class="member captain">👑 ${esc(t.captain.name)}
+          <span class="lvl lvl-cap">${t.captain.level.toFixed(1)}</span></span>
+        ${t.members.map(pid => {
+          const p = players.find(x => x.id === pid);
+          return `<span class="member">${esc(p.name)}
+            <span class="lvl ${lvlClass(p.level)}">${p.level.toFixed(1)}</span>
+            ${active ? `<span class="undo-btn" title="移除" onclick="removeMember(${pid})">✕</span>` : ''}</span>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ============ 选人逻辑 ============ */
+function pickPlayer(pid) {
+  if (draftDone) return;
+  const p = players.find(x => x.id === pid);
+  if (!p || p.teamId !== null) return;
+  const tid = curTeamId();
+  const t = teams[tid];
+  if (t.members.length >= TEAM_SIZE - 1) return;
+
+  p.teamId = tid;
+  t.members.push(pid);
+  t.total = Math.round((t.total + p.level) * 10) / 10;
+  pickHistory.push({ playerId: pid, teamId: tid });
+  log(`第${roundNo}轮：${t.name} 选中 ${p.name}（${p.level.toFixed(1)}），总等级 ${t.total.toFixed(1)}`);
+
+  advanceTurn();
+}
+
+function removeMember(pid) {
+  if (draftDone) return;
+  // 仅允许移除当前队伍最后选入的成员
+  const p = players.find(x => x.id === pid);
+  if (!p) return;
+  const t = teams[p.teamId];
+  if (t.members[t.members.length - 1] !== pid) {
+    alert('只能移除当前队伍最后选入的选手，请使用"撤销上一步"');
+    return;
+  }
+  t.members.pop();
+  t.total = Math.round((t.total - p.level) * 10) / 10;
+  p.teamId = null;
+  const idx = pickHistory.findIndex(h => h.playerId === pid);
+  if (idx >= 0) pickHistory.splice(idx, 1);
+  log(`${t.name} 移除 ${p.name}`);
+  renderDraft();
+}
+
+function advanceTurn() {
+  // 找当前轮中下一个未满的队伍
+  currentTeamIdx++;
+  while (currentTeamIdx < roundOrder.length &&
+         teams[roundOrder[currentTeamIdx]].members.length >= TEAM_SIZE - 1) {
+    currentTeamIdx++;
+  }
+
+  const allFull = teams.every(t => t.members.length >= TEAM_SIZE - 1);
+  if (allFull) { finishDraft(); return; }
+
+  if (currentTeamIdx >= roundOrder.length) {
+    // 本轮结束：按总等级升序排下一轮（低者先选），只排未满队伍，平级时人数多者优先
+    roundNo++;
+    roundOrder = teams
+      .filter(t => t.members.length < TEAM_SIZE - 1)
+      .sort((a, b) => a.total - b.total || b.members.length - a.members.length || a.id - b.id)
+      .map(t => t.id);
+    currentTeamIdx = 0;
+    log(`—— 进入第 ${roundNo}/${TEAM_SIZE - 1} 轮（剩余 ${TEAM_SIZE - 1 - roundNo} 轮），顺序（总等级低者先选）：${roundOrder.map(id => teams[id].name).join(' → ')}`);
+  }
+  renderDraft();
+}
+
+function undoPick() {
+  if (!pickHistory.length) { alert('没有可撤销的操作'); return; }
+  if (draftDone) { draftDone = false; $('finishArea').classList.add('hidden'); }
+  const last = pickHistory.pop();
+  const p = players.find(x => x.id === last.playerId);
+  const t = teams[last.teamId];
+  const mi = t.members.indexOf(last.playerId);
+  if (mi >= 0) t.members.splice(mi, 1);
+  t.total = Math.round((t.total - p.level) * 10) / 10;
+  p.teamId = null;
+
+  // 回退到该步对应的轮次与顺序
+  rebuildTurnFrom();
+  log(`撤销：${t.name} 的 ${p.name}`);
+  renderDraft();
+}
+
+/* 重新推导当前应轮到的队伍（重放历史，保持每轮顺序可复现） */
+function rebuildTurnFrom() {
+  roundNo = 1;
+  roundOrder = initialOrder.slice();
+  currentTeamIdx = 0;
+  for (const h of pickHistory) {
+    // 历史保证每步的队伍顺序，直接复现 advanceTurn 的推进逻辑
+    currentTeamIdx++;
+    while (currentTeamIdx < roundOrder.length &&
+           teams[roundOrder[currentTeamIdx]].members.length >= TEAM_SIZE - 1) currentTeamIdx++;
+    if (currentTeamIdx >= roundOrder.length) {
+      roundNo++;
+      roundOrder = teams
+        .filter(t => t.members.length < TEAM_SIZE - 1)
+        .sort((a, b) => a.total - b.total || b.members.length - a.members.length || a.id - b.id)
+        .map(t => t.id);
+      currentTeamIdx = 0;
+    }
+  }
+  while (currentTeamIdx < roundOrder.length &&
+         teams[roundOrder[currentTeamIdx]].members.length >= TEAM_SIZE - 1) currentTeamIdx++;
+}
+
+/* ============ 结束与导出 ============ */
+function finishDraft() {
+  draftDone = true;
+  renderFinal();
+  log('🎉 选人完成！');
+}
+
+function renderFinal() {
+  $('turnBanner').innerHTML = `<span>🎉 选人完成</span><span class="round">共 ${roundNo}/${TEAM_SIZE - 1} 轮</span>`;
+  $('playerPool').innerHTML = '';
+  $('teamList').innerHTML = teams.map(t => `<div class="team-box full">
+    <div class="team-head">
+      <span class="team-name">${esc(t.name)}</span>
+      <span class="team-total">总等级 <b>${t.total.toFixed(1)}</b></span>
+    </div>
+    <div class="team-members">
+      <span class="member captain">👑 ${esc(t.captain.name)}
+        <span class="lvl lvl-cap">${t.captain.level.toFixed(1)}</span></span>
+      ${t.members.map(pid => {
+        const p = players.find(x => x.id === pid);
+        return `<span class="member">${esc(p.name)}
+          <span class="lvl ${lvlClass(p.level)}">${p.level.toFixed(1)}</span></span>`;
+      }).join('')}
+    </div>
+  </div>`).join('');
+  $('finishArea').classList.remove('hidden');
+  $('finalTeams').innerHTML = $('teamList').innerHTML;
+}
+
+function exportResult() {
+  const lines = ['🏸 羽毛球选人结果', ''];
+  teams.forEach(t => {
+    lines.push(`【${t.name}】总等级 ${t.total.toFixed(1)}`);
+    lines.push(`  👑 队长：${t.captain.name}（${t.captain.level.toFixed(1)}）`);
+    t.members.forEach(pid => {
+      const p = players.find(x => x.id === pid);
+      lines.push(`  · ${p.name}（${p.level.toFixed(1)}）`);
+    });
+    lines.push('');
+  });
+  const text = lines.join('\n');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => alert('已复制到剪贴板'), () => showCopy(text));
+  } else showCopy(text);
+}
+function showCopy(text) {
+  const w = window.open('', '_blank');
+  if (w) { w.document.body.innerText = text; return; }
+  alert(text);
+}
+
+function resetAll() {
+  if (!confirm('确定重置全部？需重新设置队伍和选手。')) return;
+  location.reload();
+}
+
+/* ============ 初始化 ============ */
+renderCaptainRows();
+</script>
+</body>
+</html>
